@@ -1,6 +1,259 @@
 package com.example.myapp;
 
-import android.app.Activity;
+import android.app.Activity;import React, { useState } from "react";
+import {
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+
+export default function App() {
+  const [tab, setTab] = useState("portfolio");
+  const [works, setWorks] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [clients, setClients] = useState([
+    { name: "عميل تجريبي", email: "client@example.com" },
+  ]);
+
+  const [title, setTitle] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [service, setService] = useState("");
+  const [details, setDetails] = useState("");
+
+  async function uploadWork() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert("إذن مطلوب", "اسمحي للتطبيق بالوصول إلى الصور أولًا.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setWorks((current) => [
+        { id: Date.now().toString(), title: title || "عمل جديد", image: result.assets[0].uri },
+        ...current,
+      ]);
+      setTitle("");
+    }
+  }
+
+  function submitOrder() {
+    if (!clientName.trim() || !service.trim()) {
+      Alert.alert("بيانات ناقصة", "اكتبي اسمك ونوع التصميم المطلوب.");
+      return;
+    }
+
+    const newOrder = {
+      id: Date.now().toString(),
+      clientName,
+      service,
+      details,
+      status: "قيد المراجعة",
+    };
+
+    setOrders((current) => [newOrder, ...current]);
+    setClients((current) =>
+      current.some((client) => client.name === clientName)
+        ? current
+        : [...current, { name: clientName, email: "—" }]
+    );
+
+    setClientName("");
+    setService("");
+    setDetails("");
+    Alert.alert("تم إرسال الطلب", "سأتواصل معك لمراجعة التفاصيل.");
+  }
+
+  function renderPortfolio() {
+    return (
+      <View>
+        <Text style={styles.heading}>معرض الأعمال</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="عنوان العمل الجديد"
+          value={title}
+          onChangeText={setTitle}
+          textAlign="right"
+        />
+
+        <TouchableOpacity style={styles.button} onPress={uploadWork}>
+          <Text style={styles.buttonText}>＋ رفع عمل من الجهاز</Text>
+        </TouchableOpacity>
+
+        {works.length === 0 ? (
+          <Text style={styles.empty}>أضيفي أعمالك لتظهر هنا.</Text>
+        ) : (
+          works.map((work) => (
+            <View style={styles.card} key={work.id}>
+              <Image source={{ uri: work.image }} style={styles.workImage} />
+              <Text style={styles.cardTitle}>{work.title}</Text>
+            </View>
+          ))
+        )}
+      </View>
+    );
+  }
+
+  function renderOrderForm() {
+    return (
+      <View>
+        <Text style={styles.heading}>اطلبي تصميمًا</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="اسمك"
+          value={clientName}
+          onChangeText={setClientName}
+          textAlign="right"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="نوع التصميم (شعار، منشور، هوية بصرية...)"
+          value={service}
+          onChangeText={setService}
+          textAlign="right"
+        />
+        <TextInput
+          style={[styles.input, styles.multiline]}
+          placeholder="تفاصيل الطلب"
+          value={details}
+          onChangeText={setDetails}
+          multiline
+          textAlign="right"
+        />
+
+        <TouchableOpacity style={styles.button} onPress={submitOrder}>
+          <Text style={styles.buttonText}>إرسال الطلب</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  function renderAdmin() {
+    return (
+      <View>
+        <Text style={styles.heading}>لوحة الإدارة</Text>
+
+        <Text style={styles.subheading}>العملاء ({clients.length})</Text>
+        {clients.map((client, index) => (
+          <View style={styles.card} key={`${client.name}-${index}`}>
+            <Text style={styles.cardTitle}>{client.name}</Text>
+            <Text style={styles.muted}>{client.email}</Text>
+          </View>
+        ))}
+
+        <Text style={styles.subheading}>الطلبات ({orders.length})</Text>
+        {orders.length === 0 ? (
+          <Text style={styles.empty}>لا توجد طلبات حتى الآن.</Text>
+        ) : (
+          orders.map((order) => (
+            <View style={styles.card} key={order.id}>
+              <Text style={styles.cardTitle}>{order.service}</Text>
+              <Text style={styles.muted}>العميل: {order.clientName}</Text>
+              <Text style={styles.muted}>الحالة: {order.status}</Text>
+              {!!order.details && <Text style={styles.muted}>{order.details}</Text>}
+            </View>
+          ))
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.appTitle}>استوديو التصميم</Text>
+
+      <View style={styles.tabs}>
+        <Tab label="الأعمال" active={tab === "portfolio"} onPress={() => setTab("portfolio")} />
+        <Tab label="اطلب تصميمًا" active={tab === "order"} onPress={() => setTab("order")} />
+        <Tab label="الإدارة" active={tab === "admin"} onPress={() => setTab("admin")} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        {tab === "portfolio" && renderPortfolio()}
+        {tab === "order" && renderOrderForm()}
+        {tab === "admin" && renderAdmin()}
+      </ScrollView>
+    </View>
+  );
+}
+
+function Tab({ label, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.tab, active && styles.activeTab]}
+    >
+      <Text style={[styles.tabText, active && styles.activeTabText]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#F7F5F2", paddingTop: 55 },
+  appTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 18,
+    color: "#26222A",
+  },
+  tabs: { flexDirection: "row", justifyContent: "center", paddingHorizontal: 10 },
+  tab: {
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    borderRadius: 20,
+    marginHorizontal: 3,
+    backgroundColor: "#EAE6E1",
+  },
+  activeTab: { backgroundColor: "#5D3FD3" },
+  tabText: { color: "#37313E", fontSize: 13 },
+  activeTabText: { color: "#FFFFFF", fontWeight: "bold" },
+  content: { padding: 18, paddingBottom: 40 },
+  heading: { fontSize: 22, fontWeight: "bold", textAlign: "right", marginBottom: 14 },
+  subheading: { fontSize: 18, fontWeight: "bold", textAlign: "right", marginTop: 20, marginBottom: 8 },
+  input: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E4DFE8",
+  },
+  multiline: { minHeight: 100, textAlignVertical: "top" },
+  button: {
+    backgroundColor: "#5D3FD3",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  buttonText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 16 },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+  },
+  cardTitle: { fontWeight: "bold", fontSize: 16, textAlign: "right" },
+  muted: { color: "#6C6672", textAlign: "right", marginTop: 5 },
+  empty: { color: "#77717C", textAlign: "center", padding: 20 },
+  workImage: { width: "100%", height: 210, borderRadius: 10, marginBottom: 10 },
+});
+
 import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.graphics.Bitmap;
